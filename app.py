@@ -2,8 +2,13 @@ import os
 import hashlib
 from datetime import datetime, date
 from flask import Flask, request, jsonify, render_template
-from dotenv import load_dotenv
-load_dotenv()
+
+# Charger .env en local seulement (ignoré sur Vercel)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 app = Flask(__name__)
 
