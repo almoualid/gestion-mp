@@ -2,6 +2,8 @@ import os
 import hashlib
 from datetime import datetime, date
 from flask import Flask, request, jsonify, render_template
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 
