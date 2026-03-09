@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestion Stock — Matières Premières</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg:       #0b0d12;
+  --surface:  #111520;
+  --s2:       #181d2a;
+  --s3:       #1f2435;
+  --border:   #252d42;
+  --accent:   #f0c93a;
+  --green:    #3ecfa3;
+  --red:      #f05e5e;
+  --blue:     #5b8dee;
+  --purple:   #a47cff;
+  --text:     #dde2f0;
+  --muted:    #5a6380;
+  --r:        12px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ─ SCROLLBAR ─ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ─ HEADER ─ */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.logo-name { font-size: 17px; font-weight: 800; letter-spacing: -.5px; }
+.logo-name em { color: var(--accent); font-style: normal; }
+.header-pills { display: flex; gap: 10px; }
+.pill {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 14px;
+  font-size: 12px; font-family: 'JetBrains Mono', monospace;
+  display: flex; align-items: center; gap: 7px;
+}
+.pill-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* ─ LAYOUT ─ */
+main { max-width: 1440px; margin: 0 auto; padding: 28px; }
+
+/* ─ STATS CARDS ─ */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 18px 20px; display: flex; align-items: center; gap: 14px;
+}
+.stat-icon { font-size: 26px; }
+.stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+.stat-value { font-size: 24px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+
+/* ─ TOOLBAR ─ */
+.toolbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.search-wrap { flex: 1; min-width: 200px; position: relative; }
+.search-wrap input {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 9px 14px 9px 38px;
+  color: var(--text); font-family: 'Syne', sans-serif; font-size: 14px; outline: none;
+  transition: border-color .2s;
+}
+.search-wrap input:focus { border-color: var(--accent); }
+.search-wrap .ico { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+select.filter {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 9px 14px; color: var(--text);
+  font-family: 'Syne', sans-serif; font-size: 14px; outline: none; cursor: pointer;
+}
+
+/* ─ BUTTONS ─ */
+.btn {
+  padding: 9px 18px; border-radius: var(--r); border: none;
+  font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: 7px;
+}
+.btn-primary { background: var(--accent); color: #0b0d12; }
+.btn-primary:hover { background: #f7d55a; transform: translateY(-1px); }
+.btn-secondary { background: var(--s2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--accent); }
+.btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 7px; }
+.btn-edit { background: transparent; color: var(--green); border: 1px solid var(--green); }
+.btn-edit:hover { background: var(--green); color: #0b0d12; }
+.btn-qr { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.btn-qr:hover { background: var(--accent); color: #0b0d12; }
+.btn-del { background: transparent; color: var(--red); border: 1px solid var(--red); }
+.btn-del:hover { background: var(--red); color: #fff; }
+
+/* ─ TABLE ─ */
+.table-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden;
+}
+table { width: 100%; border-collapse: collapse; }
+thead tr { background: var(--s2); border-bottom: 1px solid var(--border); }
+th {
+  padding: 12px 14px; text-align: left; font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
+  cursor: pointer; user-select: none; white-space: nowrap;
+}
+th:hover { color: var(--text); }
+th .sort-arrow { opacity: .4; margin-left: 4px; }
+th.active .sort-arrow { opacity: 1; color: var(--accent); }
+tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--s2); }
+td { padding: 12px 14px; font-size: 13px; vertical-align: middle; }
+
+.id-tag {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  background: var(--s3); border: 1px solid var(--border);
+  border-radius: 5px; padding: 2px 7px; color: var(--accent);
+}
+.cat-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: .5px; }
+.cat-sucrant { background: rgba(240,201,58,.15); color: var(--accent); }
+.cat-laitier { background: rgba(62,207,163,.15); color: var(--green); }
+.cat-arome   { background: rgba(164,124,255,.15); color: var(--purple); }
+.cat-other   { background: rgba(90,99,128,.2); color: var(--muted); }
+
+.qty { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; }
+.date-ok { color: var(--green); font-size: 12px; }
+.date-warn { color: #f5a623; font-size: 12px; font-weight: 700; }
+.date-expired { color: var(--red); font-size: 12px; font-weight: 700; }
+.lot-text { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+.remark { font-size: 12px; color: var(--muted); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.actions { display: flex; gap: 5px; }
+
+.empty-state { text-align: center; padding: 60px; color: var(--muted); }
+.empty-state .e-icon { font-size: 40px; margin-bottom: 12px; }
+
+/* ─ LOADING ─ */
+.loading-row td { text-align: center; padding: 40px; color: var(--muted); }
+.spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; margin-right: 8px; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─ MODAL ─ */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.8);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200; opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 28px; width: 580px; max-width: 96vw;
+  max-height: 92vh; overflow-y: auto;
+  transform: translateY(18px); transition: transform .2s;
+}
+.overlay.open .modal { transform: translateY(0); }
+.modal-head { font-size: 18px; font-weight: 800; margin-bottom: 22px; display: flex; align-items: center; gap: 10px; }
+.modal-head em { color: var(--accent); font-style: normal; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.fg { display: flex; flex-direction: column; gap: 5px; }
+.fg.span2 { grid-column: 1/-1; }
+label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+input[type=text], input[type=date], input[type=number], select.form-sel, textarea.form-ta {
+  background: var(--s2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 9px 11px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 13px;
+  outline: none; transition: border-color .2s; width: 100%;
+}
+input:focus, select.form-sel:focus, textarea.form-ta:focus { border-color: var(--accent); }
+textarea.form-ta { resize: vertical; min-height: 62px; }
+.form-error { color: var(--red); font-size: 12px; margin-top: -8px; }
+
+.modal-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+/* ─ QR MODAL ─ */
+.qr-modal { width: 400px; }
+.qr-modal-head { text-align: center; margin-bottom: 4px; }
+.qr-name { font-size: 20px; font-weight: 800; color: var(--accent); }
+.qr-id { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+#qr-wrap { margin: 0 auto; width: fit-content; background: #fff; padding: 14px; border-radius: 10px; }
+.qr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+.qr-cell { background: var(--s2); border-radius: 8px; padding: 9px 11px; }
+.qr-cell-label { font-size: 9px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 3px; }
+.qr-cell-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; }
+
+/* ─ CONFIRM MODAL ─ */
+.confirm-modal { width: 360px; text-align: center; }
+.confirm-icon { font-size: 44px; margin-bottom: 12px; }
+.confirm-text { color: var(--muted); font-size: 14px; margin-bottom: 22px; }
+
+/* ─ TOAST ─ */
+.toast {
+  position: fixed; bottom: 22px; right: 22px;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 18px;
+  font-size: 13px; font-weight: 600; z-index: 400;
+  transform: translateY(70px); opacity: 0; transition: all .3s;
+  display: flex; align-items: center; gap: 8px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: var(--green); }
+.toast.error   { border-color: var(--red); }
+.toast.info    { border-color: var(--blue); }
+
+/* ─ PAGINATION ─ */
+.pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); }
+.page-btns { display: flex; gap: 6px; }
+.page-btn { background: var(--s2); border: 1px solid var(--border); border-radius: 7px; padding: 5px 10px; color: var(--text); cursor: pointer; font-size: 12px; }
+.page-btn:hover { border-color: var(--accent); color: var(--accent); }
+.page-btn.active { background: var(--accent); color: #0b0d12; border-color: var(--accent); font-weight: 700; }
+
+@media (max-width: 900px) {
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .header-pills { display: none; }
+}
+@media (max-width: 600px) {
+  main { padding: 14px; }
+  .stats-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .modal { padding: 18px; }
+  table { font-size: 11px; }
+  td, th { padding: 9px 7px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ─────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <div class="logo-mark">🏭</div>
+    <div class="logo-name">Stock <em>MP</em></div>
+  </div>
+  <div class="header-pills">
+    <div class="pill"><span class="pill-dot" style="background:var(--green)"></span>SQLite</div>
+    <div class="pill"><span class="pill-dot" style="background:var(--blue)"></span>Flask API</div>
+  </div>
+</header>
+
+<!-- ── MAIN ──────────────────────────────────────────────────── -->
+<main>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon">📦</div>
+      <div><div class="stat-label">Total articles</div><div class="stat-value" id="s-total">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">⚠️</div>
+      <div><div class="stat-label">À surveiller</div><div class="stat-value" style="color:var(--accent)" id="s-warn">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🏷️</div>
+      <div><div class="stat-label">Catégories</div><div class="stat-value" id="s-cats">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🕒</div>
+      <div><div class="stat-label">Mise à jour</div><div class="stat-value" style="font-size:14px;padding-top:4px" id="s-time">—</div></div>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span class="ico">🔍</span>
+      <input type="text" id="search" placeholder="Rechercher ingrédient, lot, fournisseur…" oninput="debounceLoad()">
+    </div>
+    <select class="filter" id="cat-filter" onchange="loadStock()">
+      <option value="">Toutes catégories</option>
+    </select>
+    <button class="btn btn-primary" onclick="openAdd()">＋ Ajouter</button>
+    <button class="btn btn-secondary" onclick="exportCSV()">⬇ CSV</button>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="setSort('id_boite')">ID <span class="sort-arrow" id="arr-id_boite">↕</span></th>
+          <th onclick="setSort('ingredient')">Ingrédient <span class="sort-arrow" id="arr-ingredient">↕</span></th>
+          <th onclick="setSort('categorie')">Catégorie</th>
+          <th onclick="setSort('fournisseur')">Fournisseur <span class="sort-arrow" id="arr-fournisseur">↕</span></th>
+          <th>Lot</th>
+          <th onclick="setSort('date_reception')">Réception <span class="sort-arrow" id="arr-date_reception">↕</span></th>
+          <th onclick="setSort('date_peremption')">Péremption <span class="sort-arrow" id="arr-date_peremption">↕</span></th>
+          <th onclick="setSort('quantite')">Quantité</th>
+          <th onclick="setSort('emplacement')">Emplacement</th>
+          <th>Remarque</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr class="loading-row"><td colspan="11"><span class="spinner"></span> Chargement…</td></tr>
+      </tbody>
+    </table>
+    <div class="pagination" id="pagination" style="display:none"></div>
+  </div>
+
+</main>
+
+<!-- ── FORM MODAL ──────────────────────────────────────────── -->
+<div class="overlay" id="form-overlay">
+  <div class="modal">
+    <div class="modal-head" id="form-head">➕ <em>Ajouter</em> un article</div>
+    <div class="form-grid">
+      <div class="fg">
+        <label>ID Boîte *</label>
+        <input type="text" id="f-id" placeholder="MP005" />
+        <span class="form-error" id="err-id"></span>
+      </div>
+      <div class="fg">
+        <label>Ingrédient *</label>
+        <input type="text" id="f-ing" placeholder="Sucre blanc" />
+        <span class="form-error" id="err-ing"></span>
+      </div>
+      <div class="fg">
+        <label>Catégorie</label>
+        <input type="text" id="f-cat" placeholder="Sucrant, Arôme…" />
+      </div>
+      <div class="fg">
+        <label>Fournisseur</label>
+        <input type="text" id="f-four" placeholder="Code fournisseur" />
+      </div>
+      <div class="fg">
+        <label>Numéro de lot</label>
+        <input type="text" id="f-lot" placeholder="L250301" />
+      </div>
+      <div class="fg">
+        <label>Quantité</label>
+        <input type="text" id="f-qty" placeholder="25 kg" />
+      </div>
+      <div class="fg">
+        <label>Date de réception</label>
+        <input type="date" id="f-rec" />
+      </div>
+      <div class="fg">
+        <label>Date de péremption</label>
+        <input type="date" id="f-per" />
+      </div>
+      <div class="fg">
+        <label>Emplacement</label>
+        <input type="text" id="f-emp" placeholder="Rack A1" />
+      </div>
+      <div class="fg">
+        <label>Remarque</label>
+        <input type="text" id="f-rem" placeholder="État, observation…" />
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeOverlay('form-overlay')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveItem()" id="save-btn">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── QR MODAL ───────────────────────────────────────────── -->
+<div class="overlay" id="qr-overlay">
+  <div class="modal qr-modal">
+    <div class="qr-modal-head">
+      <div class="qr-name" id="qr-name"></div>
+      <div class="qr-id" id="qr-id"></div>
+    </div>
+    <div id="qr-wrap"></div>
+    <div class="qr-grid" id="qr-grid"></div>
+    <div class="modal-foot" style="justify-content:center; margin-top:16px">
+      <button class="btn btn-secondary" onclick="closeOverlay('qr-overlay')">Fermer</button>
+      <button class="btn btn-primary" onclick="downloadQR()">⬇ Télécharger PNG</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONFIRM MODAL ──────────────────────────────────────── -->
+<div class="overlay" id="conf-overlay">
+  <div class="modal confirm-modal">
+    <div class="confirm-icon">🗑️</div>
+    <div class="modal-head" style="justify-content:center">Confirmer la <em>suppression</em></div>
+    <p class="confirm-text" id="conf-text"></p>
+    <div class="modal-foot" style="justify-content:center">
+      <button class="btn btn-secondary" onclick="closeOverlay('conf-overlay')">Annuler</button>
+      <button class="btn btn-del" id="conf-yes">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ──────────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let sortKey = 'id_boite', sortOrder = 'asc';
+let editId = null;
+let currentQRData = null;
+let debTimer = null;
+const PAGE_SIZE = 15;
+let currentPage = 1;
+let allData = [];
+
+// ─── API ─────────────────────────────────────────────────────────────────────
+async function api(path, opts={}) {
+  const res = await fetch('/api' + path, {
+    headers: {'Content-Type':'application/json'},
+    ...opts
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+  return data;
+}
+
+// ─── LOAD STATS ──────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const s = await api('/stock/stats');
+    document.getElementById('s-total').textContent = s.total;
+    document.getElementById('s-warn').textContent = s.warn;
+    document.getElementById('s-cats').textContent = s.categories;
+    document.getElementById('s-time').textContent = new Date().toLocaleTimeString('fr-FR');
+  } catch(e) {}
+}
+
+// ─── LOAD CATEGORIES ─────────────────────────────────────────────────────────
+async function loadCategories() {
+  try {
+    const cats = await api('/stock/categories');
+    const sel = document.getElementById('cat-filter');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Toutes catégories</option>' +
+      cats.map(c => `<option value="${c}" ${c===cur?'selected':''}>${c}</option>`).join('');
+  } catch(e) {}
+}
+
+// ─── LOAD STOCK ──────────────────────────────────────────────────────────────
+async function loadStock() {
+  const search = document.getElementById('search').value;
+  const cat = document.getElementById('cat-filter').value;
+  let url = `/stock?sort=${sortKey}&order=${sortOrder}`;
+  if (search) url += `&search=${encodeURIComponent(search)}`;
+  if (cat)    url += `&categorie=${encodeURIComponent(cat)}`;
+
+  setLoading(true);
+  try {
+    allData = await api(url);
+    currentPage = 1;
+    renderTable();
+    await loadStats();
+    await loadCategories();
+  } catch(e) {
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="11" style="text-align:center;color:var(--red);padding:40px">❌ Erreur: ${e.message}</td></tr>`;
+  }
+}
+
+function setLoading(v) {
+  if (v) document.getElementById('tbody').innerHTML =
+    `<tr class="loading-row"><td colspan="11"><span class="spinner"></span> Chargement…</td></tr>`;
+}
+
+function debounceLoad() {
+  clearTimeout(debTimer);
+  debTimer = setTimeout(loadStock, 300);
+}
+
+// ─── RENDER TABLE ─────────────────────────────────────────────────────────────
+function renderTable() {
+  const start = (currentPage-1)*PAGE_SIZE;
+  const page = allData.slice(start, start+PAGE_SIZE);
+  const today = new Date();
+
+  if (!page.length) {
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="11"><div class="empty-state"><div class="e-icon">🔍</div>Aucun résultat.</div></td></tr>`;
+    document.getElementById('pagination').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('tbody').innerHTML = page.map(item => {
+    const perDate = new Date(item.date_peremption);
+    const days = Math.ceil((perDate - today) / 86400000);
+    const dateCls = isNaN(days) ? '' : days < 0 ? 'date-expired' : days < 90 ? 'date-warn' : 'date-ok';
+    const datePrefix = isNaN(days) ? '' : days < 0 ? '❌ ' : days < 90 ? '⚠️ ' : '✓ ';
+    const catCls = catClass(item.categorie);
+    return `<tr>
+      <td><span class="id-tag">${item.id_boite}</span></td>
+      <td><strong>${item.ingredient}</strong></td>
+      <td>${item.categorie ? `<span class="cat-badge ${catCls}">${item.categorie}</span>` : '—'}</td>
+      <td>${item.fournisseur||'—'}</td>
+      <td><span class="lot-text">${item.lot||'—'}</span></td>
+      <td style="font-size:12px">${item.date_reception||'—'}</td>
+      <td><span class="${dateCls}">${datePrefix}${item.date_peremption||'—'}</span></td>
+      <td><span class="qty">${item.quantite||'—'}</span></td>
+      <td style="font-size:12px">${item.emplacement||'—'}</td>
+      <td><span class="remark" title="${item.remarque||''}">${item.remarque||'—'}</span></td>
+      <td><div class="actions">
+        <button class="btn btn-sm btn-qr" onclick="openQR('${item.id_boite}')">QR</button>
+        <button class="btn btn-sm btn-edit" onclick="openEdit('${item.id_boite}')">✏️</button>
+        <button class="btn btn-sm btn-del" onclick="confirmDel('${item.id_boite}','${item.ingredient}')">🗑</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  const total = allData.length;
+  const pages = Math.ceil(total/PAGE_SIZE);
+  const pg = document.getElementById('pagination');
+  if (pages <= 1) { pg.style.display='none'; return; }
+  pg.style.display = 'flex';
+  let btns = '';
+  for (let i=1; i<=pages; i++) {
+    btns += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  pg.innerHTML = `<span>${(start+1)}–${Math.min(start+PAGE_SIZE,total)} sur ${total}</span><div class="page-btns">${btns}</div>`;
+}
+
+function goPage(p) { currentPage=p; renderTable(); }
+
+function catClass(cat) {
+  if (!cat) return 'cat-other';
+  const c = cat.toLowerCase();
+  if (c.includes('sucr')) return 'cat-sucrant';
+  if (c.includes('lait')||c.includes('dairy')) return 'cat-laitier';
+  if (c.includes('arôme')||c.includes('arome')) return 'cat-arome';
+  return 'cat-other';
+}
+
+// ─── SORT ────────────────────────────────────────────────────────────────────
+function setSort(key) {
+  document.querySelectorAll('.sort-arrow').forEach(a => a.textContent='↕');
+  document.querySelectorAll('th').forEach(t => t.classList.remove('active'));
+  if (sortKey===key) sortOrder = sortOrder==='asc'?'desc':'asc';
+  else { sortKey=key; sortOrder='asc'; }
+  const el = document.getElementById('arr-'+key);
+  if (el) { el.textContent = sortOrder==='asc'?'↑':'↓'; el.closest('th').classList.add('active'); }
+  loadStock();
+}
+
+// ─── OVERLAYS ────────────────────────────────────────────────────────────────
+function openOverlay(id) { document.getElementById(id).classList.add('open'); }
+function closeOverlay(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); }));
+
+// ─── ADD ─────────────────────────────────────────────────────────────────────
+async function openAdd() {
+  editId = null;
+  document.getElementById('form-head').innerHTML = '➕ <em>Ajouter</em> un article';
+  clearForm();
+  try {
+    const r = await api('/stock/next-id');
+    document.getElementById('f-id').value = r.next_id;
+    document.getElementById('f-id').readOnly = false;
+  } catch(e) {}
+  openOverlay('form-overlay');
+}
+
+// ─── EDIT ────────────────────────────────────────────────────────────────────
+async function openEdit(id) {
+  editId = id;
+  document.getElementById('form-head').innerHTML = `✏️ <em>Modifier</em> ${id}`;
+  try {
+    const item = await api('/stock/' + id);
+    document.getElementById('f-id').value = item.id_boite;
+    document.getElementById('f-id').readOnly = true;
+    document.getElementById('f-ing').value = item.ingredient||'';
+    document.getElementById('f-cat').value = item.categorie||'';
+    document.getElementById('f-four').value = item.fournisseur||'';
+    document.getElementById('f-lot').value = item.lot||'';
+    document.getElementById('f-qty').value = item.quantite||'';
+    document.getElementById('f-rec').value = item.date_reception||'';
+    document.getElementById('f-per').value = item.date_peremption||'';
+    document.getElementById('f-emp').value = item.emplacement||'';
+    document.getElementById('f-rem').value = item.remarque||'';
+    openOverlay('form-overlay');
+  } catch(e) { showToast('❌ '+e.message, 'error'); }
+}
+
+function clearForm() {
+  ['f-id','f-ing','f-cat','f-four','f-lot','f-qty','f-rec','f-per','f-emp','f-rem'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('err-id').textContent='';
+  document.getElementById('err-ing').textContent='';
+}
+
+// ─── SAVE ────────────────────────────────────────────────────────────────────
+async function saveItem() {
+  const id  = document.getElementById('f-id').value.trim();
+  const ing = document.getElementById('f-ing').value.trim();
+  document.getElementById('err-id').textContent  = id  ? '' : 'Obligatoire';
+  document.getElementById('err-ing').textContent = ing ? '' : 'Obligatoire';
+  if (!id || !ing) return;
+
+  const body = {
+    id_boite: id, ingredient: ing,
+    categorie: document.getElementById('f-cat').value,
+    fournisseur: document.getElementById('f-four').value,
+    lot: document.getElementById('f-lot').value,
+    quantite: document.getElementById('f-qty').value,
+    date_reception: document.getElementById('f-rec').value,
+    date_peremption: document.getElementById('f-per').value,
+    emplacement: document.getElementById('f-emp').value,
+    remarque: document.getElementById('f-rem').value,
+  };
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = '⏳ Enregistrement…';
+
+  try {
+    if (editId) {
+      await api('/stock/'+id, {method:'PUT', body:JSON.stringify(body)});
+      showToast('✅ Article modifié !', 'success');
+    } else {
+      await api('/stock', {method:'POST', body:JSON.stringify(body)});
+      showToast('✅ Article ajouté !', 'success');
+    }
+    closeOverlay('form-overlay');
+    await loadStock();
+  } catch(e) {
+    showToast('❌ '+e.message, 'error');
+  } finally {
+    btn.disabled=false; btn.innerHTML='💾 Enregistrer';
+  }
+}
+
+// ─── DELETE ──────────────────────────────────────────────────────────────────
+function confirmDel(id, name) {
+  document.getElementById('conf-text').textContent = `Supprimer "${name}" (${id}) ?`;
+  document.getElementById('conf-yes').onclick = async () => {
+    try {
+      await api('/stock/'+id, {method:'DELETE'});
+      closeOverlay('conf-overlay');
+      showToast('🗑️ Article supprimé', 'success');
+      await loadStock();
+    } catch(e) { showToast('❌ '+e.message, 'error'); }
+  };
+  openOverlay('conf-overlay');
+}
+
+// ─── QR CODE ─────────────────────────────────────────────────────────────────
+async function openQR(id) {
+  try {
+    const r = await api('/stock/'+id+'/qr-data');
+    currentQRData = r;
+    document.getElementById('qr-name').textContent = r.item.ingredient;
+    document.getElementById('qr-id').textContent   = r.item.id_boite;
+    const wrap = document.getElementById('qr-wrap');
+    wrap.innerHTML = '';
+    new QRCode(wrap, {
+      text: r.qr_text,
+      width: 200, height: 200,
+      colorDark: '#000000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+    const fields = [
+      ['Catégorie',   r.item.categorie],
+      ['Fournisseur', r.item.fournisseur],
+      ['Lot',         r.item.lot],
+      ['Quantité',    r.item.quantite],
+      ['Emplacement', r.item.emplacement],
+      ['Péremption',  r.item.date_peremption],
+    ];
+    document.getElementById('qr-grid').innerHTML = fields.map(([l,v]) => `
+      <div class="qr-cell">
+        <div class="qr-cell-label">${l}</div>
+        <div class="qr-cell-val">${v||'—'}</div>
+      </div>`).join('');
+    openOverlay('qr-overlay');
+  } catch(e) { showToast('❌ '+e.message, 'error'); }
+}
+
+function downloadQR() {
+  const canvas = document.querySelector('#qr-wrap canvas');
+  if (!canvas) { showToast('QR non disponible', 'error'); return; }
+  const a = document.createElement('a');
+  a.download = `QR_${currentQRData.item.id_boite}.png`;
+  a.href = canvas.toDataURL();
+  a.click();
+  showToast('✅ QR téléchargé !', 'success');
+}
+
+// ─── EXPORT CSV ──────────────────────────────────────────────────────────────
+function exportCSV() {
+  if (!allData.length) { showToast('Aucune donnée à exporter', 'info'); return; }
+  const keys = ['id_boite','ingredient','categorie','fournisseur','lot','date_reception','date_peremption','quantite','emplacement','remarque'];
+  const header = ['ID Boîte','Ingrédient','Catégorie','Fournisseur','Lot','Date réception','Date péremption','Quantité','Emplacement','Remarque'];
+  const rows = [header.join(';'), ...allData.map(r => keys.map(k=>`"${(r[k]||'').toString().replace(/"/g,'""')}"`).join(';'))];
+  const blob = new Blob(['\uFEFF'+rows.join('\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `stock_MP_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  showToast(`✅ ${allData.length} articles exportés`, 'success');
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type} show`;
+  clearTimeout(window._tt);
+  window._tt = setTimeout(()=>t.classList.remove('show'), 3200);
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+loadStock();
+</script>
+</body>
+</html>
